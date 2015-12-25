@@ -152,7 +152,7 @@ def _get_page_photos(browser, output=None):
     return _get_visible_photos(browser, urls, output=output)
 
 
-def get_photo_urls(album_url, browser, wait=2, output=None):
+def get_photo_urls(album_url, browser, wait=2, output=None, progressbar=True):
     """
     returns a list of URLs of all photos belonging to
     the given album / photoset.
@@ -181,7 +181,16 @@ def get_photo_urls(album_url, browser, wait=2, output=None):
     if not browser.find_elements_by_class_name('awake'):
         raise NoSuchElementException('Is this really a Flickr Album page?')
 
+    if progressbar:
+        from tqdm import tqdm
+        photo_count_elem = browser.find_element_by_class_name('photo-counts')
+        photo_count = int(photo_count_elem.text.split()[0])
+        pbar = tqdm(total=photo_count)
+
     photo_urls = _get_page_photos(browser, output=output)
+
+    if progressbar:
+        pbar.update(len(photo_urls))
 
     # get URLs from follow-up pages, if any
     next_page = True
@@ -191,7 +200,10 @@ def get_photo_urls(album_url, browser, wait=2, output=None):
             next_page_button = browser.find_element_by_xpath(
                 "//a[@data-track='paginationRightClick']")
             next_page_button.click()
-            photo_urls.update(_get_page_photos(browser, output=output))
+            next_page_photos = _get_page_photos(browser, output=output)
+            photo_urls.update(next_page_photos)
+            if progressbar:
+                pbar.update(len(next_page_photos))
         except NoSuchElementException as e:
             next_page = False
     return photo_urls
