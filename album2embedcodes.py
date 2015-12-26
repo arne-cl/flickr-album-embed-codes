@@ -280,7 +280,11 @@ def write_embed_codes(photo_dict, output_file):
         output_file.write(embed_code+'\n\n')
 
 
-if __name__ == '__main__':
+def cli():
+    """
+    commandline interface for extracting HTML embed codes from a Flickr
+    album / photoset.
+    """
     parser = argparse.ArgumentParser(
         "extract HTML embed codes from a Flickr album")
     parser.add_argument('--debug', action='store_true',
@@ -311,3 +315,7 @@ if __name__ == '__main__':
             args.output_file.close()
     finally:
         browser.close()
+
+
+if __name__ == '__main__':
+    cli()
