@@ -14,6 +14,8 @@ scraping (i.e. selenium).
 
 from __future__ import absolute_import, division, print_function
 import argparse
+import codecs
+from collections import OrderedDict
 import re
 import sys
 import time
@@ -63,7 +65,7 @@ def get_orientation(width, height):
     return 'landscape' if width > height else 'portrait'
 
 
-def _get_visible_photos(browser, known_urls, output=None):
+def _get_visible_photos(browser, known_urls):
     """
     extracts all *currently visible* photo URLs from a Flickr photoset/album
     page, converts them into "embed code compatible" (i.e. sanctioned by
@@ -73,17 +75,20 @@ def _get_visible_photos(browser, known_urls, output=None):
     ----------
     browser : TODO ???
         a selenium webdriver instance
-    known_urls : set
-        a set of embed code compatible image URLs already extracted from
-        the current page. We'll update this list, if we find new image
+    known_urls : dict(str: dict(str: str))
+        a dictionary mapping from embed code compatible image URLs to a
+        dictionary holding some metadata ('image_page', 'title' and
+        'orientation'). We'll update this dict, if we find new image
         after scrolling down the page.
     output : str or None
         if 'cli': print an embed code as soon as a new image is found/parsed
 
     Returns
     -------
-    known_urls : set(str)
-        a set of embed code compatible image URLs
+    known_urls : dict(str: dict(str: str))
+        a dictionary mapping from embed code compatible image URLs to a
+        dictionary holding some metadata ('image_page', 'title' and
+        'orientation')
     """
     image_elems = browser.find_elements_by_class_name('awake')
     for elem in image_elems:
@@ -111,18 +116,18 @@ def _get_visible_photos(browser, known_urls, output=None):
 
         try:
             embed_url = hotlink_url2embed_url(url)
-            if output == 'cli' and (not embed_url in known_urls):
-                embed_code = embed_url2embed_code(
-                    embed_url, image_page, title, orientation)
-                print(embed_code+'\n')
+            if not embed_url in known_urls:
+                known_urls[embed_url] = {
+                    'image_page': image_page,
+                    'title': title,
+                    'orientation': orientation}
 
-            known_urls.add(embed_url)
         except AttributeError as e:
             raise AttributeError("Warning: can't convert URL: {}".format(url))
     return known_urls
 
 
-def _get_page_photos(browser, output=None):
+def _get_page_photos(browser):
     """
     returns all photo URLs from a Flickr photoset/album page, by scrolling
     down multiple times.
@@ -131,10 +136,8 @@ def _get_page_photos(browser, output=None):
     ----------
     browser : TODO ???
         a selenium webdriver instance
-    output : str or None
-        if 'cli': print an embed code as soon as a new image is found/parsed
     """
-    urls = set()
+    urls = OrderedDict()
     num_of_urls = 0
 
     while num_of_urls < 100:
@@ -143,16 +146,16 @@ def _get_page_photos(browser, output=None):
             "window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(3)
         current_num_of_urls = len(_get_visible_photos(
-            browser, urls, output=output))
+            browser, urls))
 
         if current_num_of_urls > num_of_urls:
             num_of_urls = current_num_of_urls
         else:
             break
-    return _get_visible_photos(browser, urls, output=output)
+    return _get_visible_photos(browser, urls)
 
 
-def get_photo_urls(album_url, browser, wait=2, output=None, progressbar=True):
+def get_photo_urls(album_url, browser, wait=2):
     """
     returns a list of URLs of all photos belonging to
     the given album / photoset.
@@ -166,8 +169,6 @@ def get_photo_urls(album_url, browser, wait=2, output=None, progressbar=True):
     wait : int
         time in seconds to wait/retry before a network/browser-related error is
         thrown (default: 2)
-    output : str or None
-        if 'cli': print an embed code as soon as a new image is found/parsed
 
     Returns
     -------
@@ -181,16 +182,7 @@ def get_photo_urls(album_url, browser, wait=2, output=None, progressbar=True):
     if not browser.find_elements_by_class_name('awake'):
         raise NoSuchElementException('Is this really a Flickr Album page?')
 
-    if progressbar:
-        from tqdm import tqdm
-        photo_count_elem = browser.find_element_by_class_name('photo-counts')
-        photo_count = int(photo_count_elem.text.split()[0])
-        pbar = tqdm(total=photo_count)
-
-    photo_urls = _get_page_photos(browser, output=output)
-
-    if progressbar:
-        pbar.update(len(photo_urls))
+    photo_urls = _get_page_photos(browser)
 
     # get URLs from follow-up pages, if any
     next_page = True
@@ -200,10 +192,8 @@ def get_photo_urls(album_url, browser, wait=2, output=None, progressbar=True):
             next_page_button = browser.find_element_by_xpath(
                 "//a[@data-track='paginationRightClick']")
             next_page_button.click()
-            next_page_photos = _get_page_photos(browser, output=output)
+            next_page_photos = _get_page_photos(browser)
             photo_urls.update(next_page_photos)
-            if progressbar:
-                pbar.update(len(next_page_photos))
         except NoSuchElementException as e:
             next_page = False
     return photo_urls
@@ -279,7 +269,7 @@ if __name__ == '__main__':
         help='URL of the Flickr album/photoset to extract embed codes from')
     parser.add_argument(
         'output_file', nargs='?', default=sys.stdout,
-        help='output file')
+        help='output file for photo embed codes')
 
 
     args = parser.parse_args(sys.argv[1:])
@@ -291,6 +281,13 @@ if __name__ == '__main__':
         browser = get_headless_browser()
 
     try:
-        photo_urls = get_photo_urls(args.album_url, browser, output='cli')
+        with codecs.open(args.output_file, 'w', encoding='utf8') as out_file:
+            photo_dict = get_photo_urls(args.album_url, browser)
+            for photo_url in photo_dict:
+                metadata = photo_dict[photo_url]
+                embed_code = embed_url2embed_code(
+                    photo_url, metadata['image_page'], metadata['title'],
+                    metadata['orientation'])
+                out_file.write(embed_code+'\n')
     finally:
         browser.close()
