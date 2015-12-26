@@ -259,6 +259,27 @@ def get_headless_browser():
     return webdriver.Firefox()
 
 
+def write_embed_codes(photo_dict, output_file):
+    """
+    writes HTML embed codes to an open file.
+
+    Parameters
+    ----------
+    photo_dict : dict(str: dict(str: str))
+        a dictionary mapping from embed code compatible image URLs to a
+        dictionary holding some metadata ('image_page', 'title' and
+        'orientation')
+    output_file : file
+        an open, writable file
+    """
+    for photo_url in photo_dict:
+        metadata = photo_dict[photo_url]
+        embed_code = embed_url2embed_code(
+            photo_url, metadata['image_page'], metadata['title'],
+            metadata['orientation'])
+        output_file.write(embed_code+'\n\n')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         "extract HTML embed codes from a Flickr album")
@@ -281,13 +302,12 @@ if __name__ == '__main__':
         browser = get_headless_browser()
 
     try:
-        with codecs.open(args.output_file, 'w', encoding='utf8') as out_file:
-            photo_dict = get_photo_urls(args.album_url, browser)
-            for photo_url in photo_dict:
-                metadata = photo_dict[photo_url]
-                embed_code = embed_url2embed_code(
-                    photo_url, metadata['image_page'], metadata['title'],
-                    metadata['orientation'])
-                out_file.write(embed_code+'\n')
+        photo_dict = get_photo_urls(args.album_url, browser)
+        if isinstance(args.output_file, basestring):
+            with codecs.open(args.output_file, 'w', encoding='utf8') as out_file:
+                write_embed_codes(photo_dict, out_file)
+        else: # args.output_file is an open file (i.e. stdout)
+            write_embed_codes(photo_dict, args.output_file)
+            args.output_file.close()
     finally:
         browser.close()
