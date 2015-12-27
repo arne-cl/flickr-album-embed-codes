@@ -3,13 +3,14 @@ flickr-album-embed-codes
 
 .. image:: http://img.shields.io/badge/license-BSD-yellow.svg
    :alt: BSD License
-   :align: right
+   :align: left
    :target: http://opensource.org/licenses/BSD-3-Clause
 
 .. image:: https://www.quantifiedcode.com/api/v1/project/06c5b36327504bccbff940da5603c527/badge.svg
    :alt: Code issues
-   :align: right
+   :align: left
    :target: https://www.quantifiedcode.com/app/project/06c5b36327504bccbff940da5603c527
+
 
 
 The ``flickr-album-embed-codes`` script lets you embed all the pictures of a Flickr
@@ -71,7 +72,8 @@ Usage
 Usage example
 ~~~~~~~~~~~~~
 
-This will extract the HTML embed codes of all the images in the given Flickr album:
+This will extract the HTML embed codes of all the images in the given Flickr album
+and store them in the file ``embed.html``:
 
 ::
 
