@@ -219,7 +219,7 @@ def hotlink_url2embed_url(hotlink_url):
     ending with _o: 100 x 668 (or "original size")
     """
     match = re.match(HOTLINK_URL_REGEX, hotlink_url, re.VERBOSE)
-    embed_url = 'https://farm{}.staticflickr.com/{}.jpg'.format(
+    embed_url = 'https://farm{0}.staticflickr.com/{1}.jpg'.format(
         match.group('farm_id'), match.group('image_id'))
     return embed_url
 
