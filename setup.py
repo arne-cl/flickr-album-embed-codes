@@ -29,6 +29,7 @@ setup(name='flickr-album-embed-codes',
     license='3-Clause BSD License',
     py_modules=['album2embedcodes'],
     install_requires=install_requires,
+    zip_safe=False,
     entry_points={
         'console_scripts':
             ['flickr-album-embed-codes=album2embedcodes:cli']
